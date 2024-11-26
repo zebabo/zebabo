@@ -1,4 +1,4 @@
-<h1>Hello, I'm José! <br/><a href="https://github.com/joshmadakor1">Programmer</a>, <a href="https://www.linkedin.com/in/jose-babo-7a6990335/">Web Developer</a>
+<h1>Hello, I'm José! <br/><a href="https://github.com/zebabo">Programmer</a>, <a href="https://www.linkedin.com/in/jose-babo-7a6990335/">Web Developer</a>
 <h2>👨‍💻 Web Development Projects:</h2>
 
 <h2> 🤳 Connect with me:</h2>
