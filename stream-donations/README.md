@@ -22,11 +22,15 @@ Copia `.env.example` para `.env.local` e preenche:
 | `SE_JWT` | StreamElements → perfil → Channels → *JWT Token* (expira; renovar periodicamente) |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` localmente, `https://o-teu-dominio` em produção |
 | `SE_TIP_PROVIDER` *(opcional)* | valor de `provider` na tip (default `stripe`) |
-| `SE_TIP_IMPORTED` *(opcional)* | `true` (default) envia `"imported": true`; `false` não envia |
+| `SE_TIP_IMPORTED` *(opcional)* | valor do campo `imported` (default `true`; ver abaixo) |
 
 Só `NEXT_PUBLIC_SITE_URL` chega ao browser. As restantes são lidas apenas em módulos `server-only`.
 
 ## Pedido enviado ao StreamElements
+
+Segue o schema `NewTip` da spec OpenAPI oficial
+([StreamElements/api-docs → `api.yaml`](https://github.com/StreamElements/api-docs/blob/main/api.yaml), `POST /tips/{channel}`),
+onde **todos** estes campos são obrigatórios:
 
 ```http
 POST https://api.streamelements.com/kappa/v2/tips/{SE_CHANNEL_ID}
@@ -34,7 +38,11 @@ Authorization: Bearer {SE_JWT}
 Content-Type: application/json
 
 {
-  "user": { "username": "Nome" },
+  "user": {
+    "userId": "cs_test_…",          // id da Checkout Session (não há userId Twitch)
+    "username": "Nome",
+    "email": "doador@exemplo.pt"    // email que o Stripe Checkout recolhe
+  },
   "provider": "stripe",
   "message": "Mensagem",
   "amount": 5,
@@ -43,10 +51,30 @@ Content-Type: application/json
 }
 ```
 
-> ⚠️ O formato foi confirmado com uma integração de terceiros que usa este mesmo endpoint
-> (ImproFans) e não com a referência oficial, que não estava acessível quando isto foi escrito.
-> Antes de ir para produção confirma em https://dev.streamelements.com (secção *Tips → POST /:channel*)
-> e faz um teste real (ver abaixo). Se o alerta não disparar, experimenta `SE_TIP_IMPORTED=false`.
+A spec não diz se `imported` afeta o alerta (o exemplo oficial usa `true` e a tip fica com
+`transactionId: "IMPORTED"`). Por isso o valor é configurável com `SE_TIP_IMPORTED`.
+
+### Confirmar que o alerta dispara (5 min)
+
+1. Abre a tua overlay de alertas do StreamElements numa aba do browser (ou no OBS) e confirma que o
+   alerta de **Tip** está ativo.
+2. Na pasta do projeto, com `SE_CHANNEL_ID` e `SE_JWT` no `.env.local`:
+   ```bash
+   node --env-file=.env.local scripts/se-test-tip.mjs
+   ```
+   Deves ver `HTTP 200` e a tip criada. Vê se o alerta apareceu.
+3. Se deu 200 mas **não** houve alerta, testa com `imported=false`:
+   ```bash
+   node --env-file=.env.local scripts/se-test-tip.mjs --imported=false
+   ```
+   Se este disparar, mete `SE_TIP_IMPORTED=false` no `.env.local` e na Vercel.
+4. Testa também o caso sem mensagem (a mensagem é opcional no formulário):
+   ```bash
+   node --env-file=.env.local scripts/se-test-tip.mjs --message=""
+   ```
+   e um valor com cêntimos (`--amount=2.5`, é o default): a spec declara `amount` como inteiro.
+   Se algum destes der `400`, a resposta diz qual campo falhou — avisa e ajusta-se o código.
+5. Apaga as tips de teste no dashboard do StreamElements (Activity feed / Tips).
 
 ## Idempotência
 
@@ -62,7 +90,7 @@ para não perderes o alerta. A chamada ao StreamElements tem timeout de 8 s, por
 
 ## Testar localmente
 
-1. `npm install` e `cp .env.example .env.local` (preenche com chaves **de teste**).
+1. `npm install` (gera o `package-lock.json` — faz commit dele) e `cp .env.example .env.local` (preenche com chaves **de teste**).
 2. Ativa o MB WAY em modo teste: Stripe Dashboard → Settings → Payment methods → **MB WAY** → Turn on.
    (MB WAY exige pagamentos em EUR e uma conta Stripe num país suportado, ex: Portugal.)
 3. Instala a [Stripe CLI](https://docs.stripe.com/stripe-cli), faz login e reencaminha os eventos:

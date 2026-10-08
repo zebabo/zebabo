@@ -85,7 +85,9 @@ async function handlePaidSession(session: Stripe.Checkout.Session, eventId: stri
     let tipId: string | undefined;
     try {
       tipId = await registerTip({
+        userId: session.id,
         username,
+        email: session.customer_details?.email ?? undefined,
         amount: amountCents / 100,
         currency: "EUR",
         message,
