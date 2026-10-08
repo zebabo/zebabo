@@ -1,0 +1,32 @@
+name: stream-donations
+
+on:
+  push:
+    branches: [main]
+    paths: ["stream-donations/**", ".github/workflows/stream-donations.yml"]
+  pull_request:
+    paths: ["stream-donations/**", ".github/workflows/stream-donations.yml"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stream-donations
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      # O build gera next-env.d.ts e já faz typecheck + lint de tipos.
+      - name: Build
+        run: npm run build
+      - name: Upload package-lock.json
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: stream-donations/package-lock.json
+          if-no-files-found: ignore
